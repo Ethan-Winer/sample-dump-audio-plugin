@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="xL6Mx7" name="SampleDump" projectType="audioplug" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyWebsite="https://github.com/Ethan-Winer"
+              companyName="Ethan Winer">
   <MAINGROUP id="sSp27U" name="SampleDump">
     <GROUP id="{976BF951-ED82-F6A5-DCBE-E71CBBC85733}" name="Source">
       <FILE id="BXMaE9" name="PluginProcessor.cpp" compile="1" resource="0"
