@@ -9,7 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-
+#include <filesystem>
 
 
 //==============================================================================
@@ -17,7 +17,8 @@ SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioP
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setSize (600, 300);
-    
+    countDownState = 5;
+
     parentDirectoryInputLabel.setText("Parent Folder:", juce::dontSendNotification);
     directoryInputLabel.setText("Directory Name:", juce::dontSendNotification);
     bufferSizeLabel.setText("Buffer Size:", juce::dontSendNotification);
@@ -67,7 +68,7 @@ SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioP
             return;
         }
         
-        juce::File directory = juce::File(parentDirectory.getFullPathName() + '\\' + directoryInput.getText());
+        directory = juce::File(parentDirectory.getFullPathName() + '\\' + directoryInput.getText());
         if (directory.exists()) {
             int suffix = 1;
             while (directory.exists()) {
@@ -76,13 +77,8 @@ SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioP
             }
         }
 
-        audioProcessor.bufferSize = std::stoi(bufferSizeInput.getText().toStdString());
-        audioProcessor.bufferCount = std::stoi(bufferCountInput.getText().toStdString());
-        
-        audioProcessor.buffers = new float* [audioProcessor.bufferCount];
-        for (int i = 0; i < audioProcessor.bufferCount; i++) {
-            audioProcessor.buffers[i] = new float[audioProcessor.bufferSize];
-        }
+        startTimer(1000);
+        timerCallback();
     };
 
     addAndMakeVisible(parentDirectoryInputLabel);
@@ -154,4 +150,51 @@ void SampleDumpAudioProcessorEditor::resized()
     buttonArea.reduce(130, 0);
 
     startButton.setBounds(buttonArea);
+}
+
+void SampleDumpAudioProcessorEditor::timerCallback()
+{
+    if (countDownState > 0) {
+        if (startButton.isEnabled())
+            startButton.setEnabled(false);
+        startButton.setButtonText(std::to_string(countDownState));
+        countDownState--;
+    }
+    else if (countDownState == 0 && !audioProcessor.capturingSamples) {
+        
+        audioProcessor.bufferSize = std::stoi(bufferSizeInput.getText().toStdString());
+        audioProcessor.bufferCount = std::stoi(bufferCountInput.getText().toStdString());
+
+        audioProcessor.buffers = new float* [audioProcessor.bufferCount];
+        for (int i = 0; i < audioProcessor.bufferCount; i++) {
+            audioProcessor.buffers[i] = new float[audioProcessor.bufferSize];
+        }
+        startButton.setButtonText("Capturing...");
+        countDownState--;
+        audioProcessor.capturingSamples = true;
+    }
+    else if (countDownState == -1 && !audioProcessor.capturingSamples) {
+        dumpSamples();
+        countDownState = 5;
+        startButton.setEnabled(true);
+        startButton.setButtonText("Start");
+        stopTimer();
+    }
+
+}
+
+void SampleDumpAudioProcessorEditor::dumpSamples() {
+    directory.createDirectory();
+    for (int i = 0; i < audioProcessor.bufferCount; i++) {
+        std::string dataString = "";
+        for (int k = 0; k < audioProcessor.bufferSize; k++) {
+            dataString += std::to_string(audioProcessor.buffers[i][k]) + '\n';
+        }
+
+        std::string logFilePath = directory.getFullPathName().toStdString() + "/" + std::to_string(i) + ".txt";
+        juce::File logFile = juce::File(logFilePath);
+
+        logFile.create();
+        logFile.appendText(dataString);
+    }
 }

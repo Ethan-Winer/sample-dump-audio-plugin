@@ -14,7 +14,7 @@
 //==============================================================================
 /**
 */
-class SampleDumpAudioProcessorEditor  : public juce::AudioProcessorEditor
+class SampleDumpAudioProcessorEditor  : public juce::AudioProcessorEditor, private juce::Timer
 {
 public:
     SampleDumpAudioProcessorEditor (SampleDumpAudioProcessor&);
@@ -45,7 +45,13 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;
     std::unique_ptr<juce::AlertWindow> alertWindow;
 
-    int timerValue;
+
+    int countDownState;
+    juce::File directory;
+
+
+    void timerCallback();
+    void dumpSamples();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleDumpAudioProcessorEditor)
 };

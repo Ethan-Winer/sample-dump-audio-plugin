@@ -22,7 +22,9 @@ SampleDumpAudioProcessor::SampleDumpAudioProcessor()
                        )
 #endif
 {
-    captureComplete = false;
+    capturingSamples = false;
+    currentCaptureRow = 0;
+    currentCaptureColumn = 0;
 
 }
 
@@ -154,12 +156,21 @@ void SampleDumpAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
+    //for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    //{
+    //    auto* channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
+    //    // ..do something to the data...
+    //}
+
+    auto leftChannel = buffer.getWritePointer(0);
+    for (int i = 0; i < buffer.getNumSamples() && capturingSamples; i++) {
+        captureSample(leftChannel[i]);
+        DBG(std::to_string(leftChannel[i]));
     }
+    
+
+
 }
 
 //==============================================================================
@@ -187,6 +198,7 @@ void SampleDumpAudioProcessor::setStateInformation (const void* data, int sizeIn
     // whose contents will have been created by the getStateInformation() call.
 }
 
+
 //==============================================================================
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
@@ -194,3 +206,21 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new SampleDumpAudioProcessor();
 }
 
+void SampleDumpAudioProcessor::captureSample(float& sample)
+{
+    if (currentCaptureColumn > bufferSize) {
+        currentCaptureColumn = 0;
+        currentCaptureRow++;
+    }
+
+    if (currentCaptureRow < bufferCount) {
+        buffers[currentCaptureRow][currentCaptureColumn] = sample;
+        currentCaptureColumn++;
+    }
+    else {
+        capturingSamples = false;
+        currentCaptureColumn = 0;
+        currentCaptureRow = 0;
+    }
+    
+}

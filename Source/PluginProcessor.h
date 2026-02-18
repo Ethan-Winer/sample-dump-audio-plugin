@@ -52,10 +52,15 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
     int bufferSize;
     int bufferCount;
 
-    bool captureComplete;
+    int currentCaptureRow;
+    int currentCaptureColumn;
+
+    bool capturingSamples;
+    bool performFFT;
 
     float** buffers;
 
@@ -63,7 +68,7 @@ public:
 private:
     //==============================================================================
 
-
+    void captureSample(float& sample);
 
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleDumpAudioProcessor)
