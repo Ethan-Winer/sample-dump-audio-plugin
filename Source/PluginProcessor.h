@@ -55,9 +55,8 @@ public:
     
     int bufferSize;
     int bufferCount;
-
-    int currentCaptureRow;
-    int currentCaptureColumn;
+    int currentBuffer;
+    int currentIndex;
 
     bool capturingSamples;
     bool performFFT;

@@ -1,28 +1,13 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-
 #include <filesystem>
 
-
-//==============================================================================
 SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (600, 300);
-    countDownState = 5;
-
     parentDirectoryInputLabel.setText("Parent Folder:", juce::dontSendNotification);
     directoryInputLabel.setText("Directory Name:", juce::dontSendNotification);
     bufferSizeLabel.setText("Buffer Size:", juce::dontSendNotification);
-    toggleFFTLabel.setText("Perform FFT:", juce::dontSendNotification);
     bufferCountLabel.setText("Number of Buffers: ", juce::dontSendNotification);
 	
     parentDirectoryInput.setBorder(juce::BorderSize<int>(1));
@@ -36,7 +21,20 @@ SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioP
 
     bufferCountInput.setInputRestrictions(0, "0123456789");
     bufferCountInput.setText("50");
-
+    
+    setSize (600, 175);
+    addAndMakeVisible(parentDirectoryInputLabel);
+    addAndMakeVisible(directoryInputLabel);
+	addAndMakeVisible(parentDirectoryInput);
+    addAndMakeVisible(directoryInput);
+    addAndMakeVisible(startButton);
+    addAndMakeVisible(browseButton);
+    addAndMakeVisible(bufferSizeInput);
+    addAndMakeVisible(bufferSizeLabel);
+    addAndMakeVisible(bufferCountLabel);
+    addAndMakeVisible(bufferCountInput);
+    
+    //button events
     browseButton.onClick = [this](){
         fileChooser.reset(new juce::FileChooser(juce::String("choose a folder"), juce::File::getCurrentWorkingDirectory(), juce::String("*")));
 
@@ -48,109 +46,69 @@ SampleDumpAudioProcessorEditor::SampleDumpAudioProcessorEditor (SampleDumpAudioP
     };
 
     startButton.onClick = [this]() {
-        if (!parentDirectoryInput.getText().containsChar(':')) {
-            alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Parrent Directory", "Parent Directory is not an absolute path.");
-            return;
-        }
-
-        juce::File parentDirectory = juce::File(parentDirectoryInput.getText());
-
-        if (!parentDirectory.isDirectory()) {
-            alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Parrent Directory", "Parent Directory doesn't exist.");
-            return;
-        }
-        else if (directoryInput.getText().isEmpty()) {
-            alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Enter A Directory", "Enter the name for the new directory the buffer logs will be saved.");
-            return;
-        }
-        else if (directoryInput.getText().containsAnyOf("/\\<>:\"|?*")) {
-            alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Directory Name", "New Directory is using an invalid character (/ \\<>:\"|?*).");
-            return;
-        }
-        
-        directory = juce::File(parentDirectory.getFullPathName() + '\\' + directoryInput.getText());
-        if (directory.exists()) {
-            int suffix = 1;
-            while (directory.exists()) {
-                directory = juce::File(parentDirectory.getFullPathName() + '\\' + directoryInput.getText() + "(" + std::to_string(suffix) + ")");
-                suffix++;
+        if (validInput()) {
+            // numbering folder if it is a duplicate
+            auto parentDirectoryPath = juce::File(parentDirectoryInput.getText()).getFullPathName();
+            directory = juce::File(parentDirectoryPath + '\\' + directoryInput.getText());
+            if (directory.exists()) {
+                int suffix = 1;
+                while (directory.exists()) {
+                    directory = juce::File(parentDirectoryPath + '\\' + directoryInput.getText() + "(" + std::to_string(suffix) + ")");
+                    suffix++;
+                }
             }
-        }
 
-        startTimer(1000);
-        timerCallback();
+            startButton.setEnabled(false);
+            countDownState = 5;
+            startTimer(1000);
+            timerCallback();
+        }
     };
 
-    addAndMakeVisible(parentDirectoryInputLabel);
-    addAndMakeVisible(directoryInputLabel);
-	addAndMakeVisible(parentDirectoryInput);
-    addAndMakeVisible(directoryInput);
-    addAndMakeVisible(startButton);
-    addAndMakeVisible(browseButton);
-    addAndMakeVisible(bufferSizeInput);
-    addAndMakeVisible(bufferSizeLabel);
-    addAndMakeVisible(toggleFFTLabel);
-    addAndMakeVisible(toggleFFTButton);
-    addAndMakeVisible(bufferCountLabel);
-    addAndMakeVisible(bufferCountInput);
 }
 
 SampleDumpAudioProcessorEditor::~SampleDumpAudioProcessorEditor()
 {
 }
 
-//==============================================================================
 void SampleDumpAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-
 }
 
 void SampleDumpAudioProcessorEditor::resized()
 {
     auto mainArea = getLocalBounds();
-    mainArea.reduce(10, 30);
+    int labelWidth = 140;
+    int areaHeight = 35;
+    int areaPadding = 5;
 
-    auto parentDirectoryArea = mainArea.removeFromTop(25);
-    parentDirectoryInputLabel.setBounds(parentDirectoryArea.removeFromLeft(130));
+    auto parentDirectoryArea = mainArea.removeFromTop(areaHeight).reduced(areaPadding);
+    parentDirectoryInputLabel.setBounds(parentDirectoryArea.removeFromLeft(labelWidth));
     browseButton.setBounds(parentDirectoryArea.removeFromRight(80));
-    parentDirectoryArea.removeFromRight(10);
     parentDirectoryInput.setBounds(parentDirectoryArea);
 
-    mainArea.removeFromTop(10);
 
-    auto directoryArea = mainArea.removeFromTop(25);
-    directoryInputLabel.setBounds(directoryArea.removeFromLeft(130));
+    auto directoryArea = mainArea.removeFromTop(areaHeight).reduced(areaPadding);
+    directoryInputLabel.setBounds(directoryArea.removeFromLeft(labelWidth));
     directoryInput.setBounds(directoryArea);
-    
-    mainArea.removeFromTop(10);
 
-    auto captureCountArea = mainArea.removeFromTop(25);
 
-    bufferCountLabel.setBounds(captureCountArea.removeFromLeft(130));
-    bufferCountInput.setBounds(captureCountArea.removeFromLeft(130));
+    auto captureCountArea = mainArea.removeFromTop(areaHeight).reduced(areaPadding);
+    bufferCountLabel.setBounds(captureCountArea.removeFromLeft(labelWidth));
+    bufferCountInput.setBounds(captureCountArea.removeFromLeft(labelWidth));
 
-    mainArea.removeFromTop(10);
 
-    auto bufferSizeArea = mainArea.removeFromTop(25);
-    bufferSizeLabel.setBounds(bufferSizeArea.removeFromLeft(130));
-    bufferSizeInput.setBounds(bufferSizeArea.removeFromLeft(130));
+    auto bufferSizeArea = mainArea.removeFromTop(areaHeight).reduced(areaPadding);
+    bufferSizeLabel.setBounds(bufferSizeArea.removeFromLeft(labelWidth));
+    bufferSizeInput.setBounds(bufferSizeArea.removeFromLeft(labelWidth));
 
-    mainArea.removeFromTop(10);
-
-    auto toggleFFTArea = mainArea.removeFromTop(25);
-    toggleFFTLabel.setBounds(toggleFFTArea.removeFromLeft(125));
-    toggleFFTButton.setBounds(toggleFFTArea);
-
-    mainArea.removeFromTop(10);
-
-    auto buttonArea = mainArea.removeFromTop(25);
+    auto buttonArea = mainArea.removeFromTop(areaHeight).reduced(areaPadding);
     buttonArea.reduce(130, 0);
 
     startButton.setBounds(buttonArea);
 }
+
 
 void SampleDumpAudioProcessorEditor::timerCallback()
 {
@@ -160,7 +118,7 @@ void SampleDumpAudioProcessorEditor::timerCallback()
         startButton.setButtonText(std::to_string(countDownState));
         countDownState--;
     }
-    else if (countDownState == 0 && !audioProcessor.capturingSamples) {
+    else if (countDownState == 0) {
         
         audioProcessor.bufferSize = std::stoi(bufferSizeInput.getText().toStdString());
         audioProcessor.bufferCount = std::stoi(bufferCountInput.getText().toStdString());
@@ -197,4 +155,28 @@ void SampleDumpAudioProcessorEditor::dumpSamples() {
         logFile.create();
         logFile.appendText(dataString);
     }
+}
+
+bool SampleDumpAudioProcessorEditor::validInput() {
+    if (!parentDirectoryInput.getText().containsChar(':')) {
+        alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Parrent Directory", "Parent Directory is not an absolute path.");
+        return false;
+    }
+
+    juce::File parentDirectory = juce::File(parentDirectoryInput.getText());
+
+    if (!parentDirectory.isDirectory()) {
+        alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Parrent Directory", "Parent Directory doesn't exist.");
+        return false;
+    }
+    else if (directoryInput.getText().isEmpty()) {
+        alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Enter A Directory", "Enter the name for the new directory the buffer logs will be saved.");
+        return false;
+    }
+    else if (directoryInput.getText().containsAnyOf("/\\<>:\"|?*")) {
+        alertWindow->showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid Directory Name", "New Directory is using an invalid character (/ \\<>:\"|?*).");
+        return false;
+    }
+
+    return true;
 }
